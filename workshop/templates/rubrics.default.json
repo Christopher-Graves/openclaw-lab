@@ -1,0 +1,42 @@
+{
+  "SOUL.md": {
+    "maxScore": 50,
+    "criteria": [
+      { "name": "Identity clarity", "weight": 10, "desc": "Persona name, role, and voice are unambiguous" },
+      { "name": "Behavioral rules", "weight": 10, "desc": "Clear do/don't rules for response style" },
+      { "name": "Memory integration", "weight": 10, "desc": "Rules for when to search/save memory" },
+      { "name": "Error handling", "weight": 5, "desc": "Guidance for graceful failure" },
+      { "name": "Security posture", "weight": 5, "desc": "Rules against leaking secrets or breaking character" },
+      { "name": "Consistency", "weight": 10, "desc": "No contradictory instructions" }
+    ]
+  },
+  "AGENTS.md": {
+    "maxScore": 50,
+    "criteria": [
+      { "name": "Agent roster clarity", "weight": 10, "desc": "Clear list of agents and their roles" },
+      { "name": "Routing rules", "weight": 10, "desc": "When to delegate to which agent" },
+      { "name": "Capability boundaries", "weight": 10, "desc": "What each agent can and cannot do" },
+      { "name": "Escalation paths", "weight": 10, "desc": "How to handle requests outside agent scope" },
+      { "name": "Status tracking", "weight": 10, "desc": "Current agent availability and health" }
+    ]
+  },
+  "TOOLS.md": {
+    "maxScore": 50,
+    "criteria": [
+      { "name": "Tool catalog completeness", "weight": 10, "desc": "All available tools listed with descriptions" },
+      { "name": "Usage examples", "weight": 10, "desc": "Clear examples for each tool" },
+      { "name": "Error handling", "weight": 10, "desc": "What to do when a tool fails" },
+      { "name": "Routing logic", "weight": 10, "desc": "When to use which tool" },
+      { "name": "Security rules", "weight": 10, "desc": "Tool access controls and limits" }
+    ]
+  },
+  "MEMORY.md": {
+    "maxScore": 50,
+    "criteria": [
+      { "name": "Search triggers", "weight": 15, "desc": "Clear rules for when to search memory" },
+      { "name": "Save triggers", "weight": 15, "desc": "Clear rules for when to save to memory" },
+      { "name": "Format consistency", "weight": 10, "desc": "Consistent memory entry format" },
+      { "name": "Dedup rules", "weight": 10, "desc": "Rules to avoid duplicate memories" }
+    ]
+  }
+}

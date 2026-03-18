@@ -1,0 +1,1 @@
+{"openclaw":{"configDir":"~/.openclaw","envFile":"~/.openclaw/.env","skillsDir":"~/.openclaw/skills","gwsConfig":"~/.openclaw/gws-config","image":"ghcr.io/openclaw/openclaw:latest"},"docker":{"port":28789,"containerPrefix":"openclaw-lab"},"scoring":{"model":"haiku"}}

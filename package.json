@@ -1,0 +1,15 @@
+{
+  "name": "openclaw-lab",
+  "version": "1.0.0",
+  "description": "Agent training and testing framework for OpenClaw",
+  "type": "module",
+  "scripts": {
+    "init": "node workshop/init.js",
+    "test": "node tests/runner.js",
+    "cycle": "node tests/cycle.js",
+    "setup": "node docker/setup.js",
+    "promote": "node docker/promote.js"
+  },
+  "keywords": ["openclaw", "agent", "testing", "ai"],
+  "license": "MIT"
+}

@@ -1,0 +1,14 @@
+node_modules/
+.env
+*.env
+
+# Test artifacts
+agents/*/results/
+agents/*/scores/
+
+# Staging area
+.lab-staging/
+
+# OS files
+.DS_Store
+Thumbs.db

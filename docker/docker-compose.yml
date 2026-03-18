@@ -1,0 +1,59 @@
+services:
+  openclaw-lab:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    container_name: ${LAB_CONTAINER:-openclaw-lab-test}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      GATEWAY_AUTH_TOKEN: ${GATEWAY_AUTH_TOKEN:-test-gateway-token-2026}
+      OPENCLAW_GATEWAY_TOKEN: ${GATEWAY_AUTH_TOKEN:-test-gateway-token-2026}
+      ANTHROPIC_API_TOKEN: ${ANTHROPIC_API_TOKEN:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      NOTION_API_KEY: ${NOTION_API_KEY:-}
+      OP_SERVICE_ACCOUNT_TOKEN: ${OP_SERVICE_ACCOUNT_TOKEN:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GH_TOKEN: ${GITHUB_TOKEN:-}
+      GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND: file
+      QMD_URL: http://host.docker.internal:8182
+      QMD_API_KEY: ${QMD_API_KEY:-}
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ${LAB_VOLUME:-openclaw-lab-config}:/home/node/.openclaw
+      - ${OPENCLAW_SKILLS_DIR:-~/.openclaw/skills}:/home/node/.openclaw/skills:ro
+      - ${OPENCLAW_GWS_CONFIG:-~/.openclaw/gws-config}:/home/node/.config/gws:ro
+    ports:
+      - "${LAB_PORT:-28789}:18789"
+    init: true
+    restart: unless-stopped
+    command:
+      [
+        "node",
+        "dist/index.js",
+        "gateway",
+        "--bind",
+        "lan",
+        "--port",
+        "18789",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  openclaw-lab-config:

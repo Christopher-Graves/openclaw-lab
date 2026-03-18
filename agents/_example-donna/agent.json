@@ -1,0 +1,22 @@
+{
+  "name": "_example-donna",
+  "displayName": "Donna",
+  "description": "Executive assistant for Chris — manages memory, research, GWS, Notion, scheduling, and Slack conversations",
+  "model": "anthropic/claude-opus-4-6",
+  "fallback": "anthropic/claude-sonnet-4-6",
+  "workspaceFiles": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md",
+    "MEMORY.md",
+    "HEARTBEAT.md",
+    "IDENTITY.md",
+    "INFRASTRUCTURE.md",
+    "USER.md",
+    "REGRESSIONS.md",
+    "FRICTION-LOG.md"
+  ],
+  "productionDir": "~/.openclaw/workspace",
+  "skipDocker": ["gws.cmd", "nssm"],
+  "keepSlack": false
+}

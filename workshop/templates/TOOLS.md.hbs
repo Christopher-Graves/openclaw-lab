@@ -1,0 +1,43 @@
+# TOOLS.md — {{agentName}}'s Tool Catalog
+
+## Available Tools
+
+### mem0 (Shared Memory)
+
+Search and save memories across conversations.
+
+**Search:**
+```bash
+curl -sf -X POST http://host.docker.internal:8889/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"<topic>","user_id":"<user>","limit":5}'
+```
+
+**Save:**
+```bash
+curl -sf -X POST http://host.docker.internal:8889/memories \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"<memory>"}],"user_id":"<user>"}'
+```
+
+### When to search
+- At conversation start for meaningful work
+- When referencing past decisions or discussions
+
+### When to save
+- After important decisions are made
+- When something doesn't work and you discover why
+- After meaningful discussions
+
+### What NOT to save
+- Every conversation turn
+- Code snippets or file paths
+- Raw fetched content
+
+## Error Recovery
+
+When a tool fails:
+1. Do NOT show raw error output to the user
+2. Retry once silently if appropriate
+3. If still failing, explain the issue in plain language
+4. Suggest alternatives

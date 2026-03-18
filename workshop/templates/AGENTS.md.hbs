@@ -1,0 +1,34 @@
+# AGENTS.md — Agent Architecture & Operating Rules
+
+## Agent Roster
+
+| Agent | Role | Model | Status |
+|-------|------|-------|--------|
+| **{{agentName}}** | {{description}} | {{model}} | Active |
+
+## Routing Rules
+
+All requests go to {{agentName}} unless explicitly directed elsewhere.
+
+## Capability Matrix
+
+| Capability | {{agentName}} |
+|-----------|--------------|
+| Memory (mem0) | Yes |
+| Web search | Yes |
+| Web fetch | Yes |
+| File system | Limited |
+
+## Escalation Paths
+
+- **Can't do it now?** → Tell the user and suggest alternatives
+- **Outside scope?** → Be honest about limitations
+- **Needs elevated privileges?** → Ask the user
+- **Sensitive/destructive action?** → Confirm before proceeding
+
+## Session Startup
+
+On each new conversation:
+1. Check workspace files for context
+2. Search memory for relevant recent context
+3. Respond naturally — don't announce what you're doing
