@@ -238,6 +238,61 @@ async function runScenario(scenario, opts, config, agentConfig, token) {
   };
 }
 
+/**
+ * Run all scenarios programmatically (used by loop.js).
+ * @param {object[]} scenarios - Array of scenario objects
+ * @param {object} opts - Runner options (agent, mode, verbose, timeout, etc.)
+ * @param {object} config - Lab config
+ * @param {object} agentConfig - Agent config from agent.json
+ * @param {string} token - Gateway auth token
+ * @returns {object[]} Array of result objects
+ */
+export async function runAllScenarios(scenarios, opts, config, agentConfig, token) {
+  let filtered = [...scenarios];
+
+  // Skip docker-incompatible scenarios
+  if (opts.mode === "docker") {
+    const skipped = filtered.filter((s) => s.skip_docker);
+    filtered = filtered.filter((s) => !s.skip_docker);
+    for (const s of skipped) {
+      if (opts.verbose) console.log(`  [SKIP] ${s.id} ${s.name}`);
+    }
+  }
+
+  const results = [];
+  for (const scenario of filtered) {
+    try {
+      const result = await runScenario(scenario, opts, config, agentConfig, token);
+      results.push(result);
+    } catch (err) {
+      console.error(`  ERROR running ${scenario.id}: ${err.message}`);
+      results.push({
+        id: scenario.id,
+        name: scenario.name,
+        verdict: "ERROR",
+        error: err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Summarize results into pass/fail/error counts and pass rate.
+ * @param {object[]} results - Array of result objects
+ * @returns {object} { total, passed, failed, errors, passRate }
+ */
+export function summarizeResults(results) {
+  const passed = results.filter((r) => r.verdict === "PASS").length;
+  const failed = results.filter((r) => r.verdict === "FAIL").length;
+  const errors = results.filter((r) => r.verdict === "ERROR").length;
+  const total = results.length;
+  const passRate = total > 0 ? (passed / total) * 100 : 0;
+  return { total, passed, failed, errors, passRate };
+}
+
 async function main() {
   const opts = parseArgs();
   const config = loadConfig();
@@ -265,16 +320,6 @@ async function main() {
     scenarios = scenarios.filter((s) => s.category === opts.category);
   }
 
-  // Skip docker-incompatible scenarios
-  if (opts.mode === "docker") {
-    const skipList = agentConfig.skipDocker || [];
-    const skipped = scenarios.filter((s) => s.skip_docker);
-    scenarios = scenarios.filter((s) => !s.skip_docker);
-    for (const s of skipped) {
-      console.log(`  [SKIP] ${s.id} ${s.name} — ${s.skip_reason || "skip_docker"}`);
-    }
-  }
-
   console.log(`\n=== OpenClaw Lab Test Runner ===`);
   console.log(`Agent: ${agentName}`);
   console.log(`Mode: ${opts.mode}`);
@@ -300,33 +345,14 @@ async function main() {
     }
   }
 
-  // Run scenarios
-  const results = [];
-  for (const scenario of scenarios) {
-    try {
-      const result = await runScenario(scenario, opts, config, agentConfig, token);
-      results.push(result);
-    } catch (err) {
-      console.error(`  ERROR running ${scenario.id}: ${err.message}`);
-      results.push({
-        id: scenario.id,
-        name: scenario.name,
-        verdict: "ERROR",
-        error: err.message,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-
-  // Summary
-  const passed = results.filter((r) => r.verdict === "PASS").length;
-  const failed = results.filter((r) => r.verdict === "FAIL").length;
-  const errors = results.filter((r) => r.verdict === "ERROR").length;
+  // Run all scenarios using the exported function
+  const results = await runAllScenarios(scenarios, opts, config, agentConfig, token);
+  const summary = summarizeResults(results);
 
   console.log(`\n=== Results ===`);
-  console.log(`  Passed: ${passed}/${results.length}`);
-  console.log(`  Failed: ${failed}/${results.length}`);
-  if (errors > 0) console.log(`  Errors: ${errors}/${results.length}`);
+  console.log(`  Passed: ${summary.passed}/${summary.total}`);
+  console.log(`  Failed: ${summary.failed}/${summary.total}`);
+  if (summary.errors > 0) console.log(`  Errors: ${summary.errors}/${summary.total}`);
 
   // Save results
   const resultsDir = path.join(LAB_ROOT, "agents", opts.agent, "results");
@@ -339,7 +365,7 @@ async function main() {
     timestamp: new Date().toISOString(),
     agent: opts.agent,
     mode: opts.mode,
-    summary: { total: results.length, passed, failed, errors },
+    summary: { total: summary.total, passed: summary.passed, failed: summary.failed, errors: summary.errors },
     results,
   };
 
@@ -351,7 +377,7 @@ async function main() {
   fs.writeFileSync(mdFile, generateMarkdownReport(report));
   console.log(`  Report saved to ${mdFile}`);
 
-  if (failed > 0 || errors > 0) process.exit(1);
+  if (summary.failed > 0 || summary.errors > 0) process.exit(1);
 }
 
 function generateMarkdownReport(report) {
@@ -388,7 +414,10 @@ function generateMarkdownReport(report) {
   return lines.join("\n");
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+// Only run CLI when invoked directly (not when imported)
+if (process.argv[1]?.endsWith("runner.js")) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

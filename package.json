@@ -8,7 +8,10 @@
     "test": "node tests/runner.js",
     "cycle": "node tests/cycle.js",
     "setup": "node docker/setup.js",
-    "promote": "node docker/promote.js"
+    "promote": "node docker/promote.js",
+    "loop": "node tests/loop.js",
+    "design": "node workshop/design.js",
+    "dashboard": "node tests/dashboard.js"
   },
   "keywords": ["openclaw", "agent", "testing", "ai"],
   "license": "MIT"

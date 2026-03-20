@@ -29,6 +29,7 @@ import {
   saveScores,
   loadPreviousScores,
 } from "./scorer.js";
+import { generateMutation, applyMutation, readWorkspaceFiles } from "./lib/mutator.js";
 
 const LAB_ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -59,6 +60,7 @@ function parseArgs() {
     refresh: false,
     fix: false,
     promote: false,
+    loop: false,
     maxBudget: 20,
     model: "sonnet",
     scenario: null,
@@ -72,6 +74,7 @@ function parseArgs() {
       case "--refresh": opts.refresh = true; break;
       case "--fix": opts.fix = true; break;
       case "--promote": opts.promote = true; break;
+      case "--loop": opts.loop = true; break;
       case "--max-budget": opts.maxBudget = parseFloat(args[++i]); break;
       case "--model": opts.model = args[++i]; break;
       case "--scenario": opts.scenario = args[++i]; break;
@@ -200,89 +203,32 @@ async function phaseFix(opts, containerName, stageDir) {
   pullWorkspaceFromContainer(containerName, stageDir);
 
   const agentConfig = loadAgentConfig(opts.agent);
-  const agentName = agentConfig.displayName || agentConfig.name;
   let fixCount = 0;
-  const modelFlag = opts.model === "opus" ? "opus" : "sonnet";
+  const wsDir = path.join(stageDir, "workspace");
 
   for (const failure of failures) {
     console.log(`  Fixing ${failure.id}: ${failure.name}`);
     console.log(`    Failure: ${failure.llmScore?.reasoning || "pattern match"}`);
 
-    const wsDir = path.join(stageDir, "workspace");
-    const soulContent = readIfExists(path.join(wsDir, "SOUL.md"));
-    const agentsContent = readIfExists(path.join(wsDir, "AGENTS.md"));
+    const wsFiles = readWorkspaceFiles(wsDir);
+    const mutation = generateMutation(failure, failures, wsFiles, agentConfig, {
+      model: opts.model,
+    });
 
-    const fixPrompt = `You are fixing a prompt engineering issue with an AI assistant called ${agentName}.
+    if (mutation) {
+      console.log(`    Fix: ${mutation.description || mutation.fix_description}`);
+      console.log(`    File: ${mutation.file}`);
 
-FAILURE:
-- Test: ${failure.id} — ${failure.name}
-- Prompt sent: "${failure.prompt}"
-- Response received: "${(failure.response || "").slice(0, 500)}"
-- Why it failed: ${failure.llmScore?.reasoning || "matched a fail pattern"}
-- Pass criteria: ${JSON.stringify(failure.prompt)}
-
-CURRENT SOUL.md (defines ${agentName}'s persona/behavior):
----
-${soulContent.slice(0, 4000)}
----
-
-CURRENT AGENTS.md:
----
-${agentsContent.slice(0, 4000)}
----
-
-Analyze why ${agentName} failed this test and suggest the MINIMAL edit to fix it.
-Output your fix as a JSON object:
-
-{
-  "file": "SOUL.md or AGENTS.md or TOOLS.md or MEMORY.md",
-  "analysis": "why it failed",
-  "fix_description": "what to change",
-  "search": "exact text to find in the file",
-  "replace": "replacement text"
-}
-
-Rules:
-- Make the SMALLEST possible change
-- Don't remove existing behavior — augment it
-- Don't over-specify — keep instructions general enough to handle similar cases
-- Prefer adding a rule or example over rewriting existing text`;
-
-    try {
-      const result = execSync(`claude -p --model ${modelFlag}`, {
-        input: fixPrompt,
-        encoding: "utf-8",
-        timeout: 60000,
-      });
-
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const fix = JSON.parse(jsonMatch[0]);
-        console.log(`    Fix: ${fix.fix_description}`);
-        console.log(`    File: ${fix.file}`);
-
-        const targetFile = path.join(wsDir, fix.file);
-        if (fs.existsSync(targetFile)) {
-          let content = fs.readFileSync(targetFile, "utf-8");
-          if (fix.search && content.includes(fix.search)) {
-            content = content.replace(fix.search, fix.replace);
-            fs.writeFileSync(targetFile, content);
-            pushFileToContainer(containerName, stageDir, fix.file);
-            console.log(`    Applied fix to ${fix.file}`);
-            fixCount++;
-          } else if (fix.replace && !fix.search) {
-            content += "\n" + fix.replace;
-            fs.writeFileSync(targetFile, content);
-            pushFileToContainer(containerName, stageDir, fix.file);
-            console.log(`    Appended fix to ${fix.file}`);
-            fixCount++;
-          } else {
-            console.log(`    WARNING: Could not find search text in ${fix.file}`);
-          }
-        }
+      const applied = applyMutation(mutation, wsDir);
+      if (applied) {
+        pushFileToContainer(containerName, stageDir, mutation.file);
+        console.log(`    Applied fix to ${mutation.file}`);
+        fixCount++;
+      } else {
+        console.log(`    WARNING: Could not apply mutation to ${mutation.file}`);
       }
-    } catch (err) {
-      console.error(`    Fix generation failed: ${err.message}`);
+    } else {
+      console.error(`    Fix generation failed`);
     }
   }
 
@@ -298,10 +244,6 @@ Rules:
   }
 
   return { fixed: fixCount, attempts: failures.length };
-}
-
-function readIfExists(filePath) {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : "";
 }
 
 // ── Phase 5: Report + Promote ──
@@ -399,6 +341,22 @@ async function main() {
 
   const startTime = Date.now();
 
+  // Delegate to loop.js if --loop flag is set
+  if (opts.loop) {
+    console.log("\n  Delegating to autonomous hardening loop...\n");
+    const loopArgs = [`--agent`, opts.agent, `--model`, opts.model];
+    try {
+      execSync(`node "${path.join(LAB_ROOT, "tests", "loop.js")}" ${loopArgs.join(" ")}`, {
+        encoding: "utf-8",
+        stdio: "inherit",
+        timeout: 0,
+      });
+    } catch (err) {
+      process.exit(err.status || 1);
+    }
+    return;
+  }
+
   if (opts.refresh) phaseRefresh(opts.agent);
 
   const testResult = await phaseTest(opts);
@@ -413,7 +371,10 @@ async function main() {
   console.log(`\nTotal time: ${elapsed}s`);
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+// Only run CLI when invoked directly
+if (process.argv[1]?.endsWith("cycle.js")) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

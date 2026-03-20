@@ -187,8 +187,7 @@ export function loadPreviousScores(agentName) {
 
 // ── CLI entrypoint ──
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` ||
-    process.argv[1]?.endsWith("scorer.js")) {
+if (process.argv[1]?.endsWith("scorer.js")) {
   const args = process.argv.slice(2);
   let agentName = null;
   let file = null;

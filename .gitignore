@@ -9,6 +9,9 @@ agents/*/scores/
 # Staging area
 .lab-staging/
 
+# Hardening snapshots
+agents/*/snapshots/
+
 # OS files
 .DS_Store
 Thumbs.db
